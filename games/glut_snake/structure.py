@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 
 '''实现一个队列存储蛇的身体的坐标位置'''
-
+from games.glut_snake import define
 #队列中的节点
 class Node(object):
     def __init__(self,t,x = 0,y = 0):
@@ -11,7 +11,7 @@ class Node(object):
         self.t     = t    #节点类别
         self.next  = None  #下一个节点
 #链表队列
-class Queue(object):
+class Snake(object):
     def __init__(self):
         self.head = Node(0,0,0)   #头节点不存放任何信息
         self.head.next = None
@@ -25,26 +25,35 @@ class Queue(object):
         self.length    += 1
         
     #pop一个节点从头部pop
-    def pop(self):
+    def delete_tail(self):
         head_next = self.head.next
         if head_next == None:
-            print 'no data in queue...'
             return
         self.head.next = head_next.next
         self.length    -= 1
         head_next.next = None
         return head_next
     
-    def push(self,x,y,t):
-        node = Node(t,x,y)
+    def add_head(self,x,y):
+        self.length += 1
+        node = Node(define.SHEAD,x,y)
         self.push_(node)
+        #print "add_head"
     
+    def add_body(self,x,y):
+        self.length += 1
+        node = Node(define.SBODY,x, y)
+        self.push_(node)
+        #print "add_body"
+        
     def get_head_pos(self):
-        head = self.head.next
-        return head.x,head.y
-    
+        return self.tail.x,self.tail.y
+
     def __str__(self):
-        text = ""
+        text = "["
         head = self.head.next
         while head != None:
-            text += str(head.x) + str(head.y)
+            text += "("+str(head.x) + ","+str(head.y)+")"
+            head = head.next
+        text += "]"
+        return text

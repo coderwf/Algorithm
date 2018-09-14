@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-from games.glut_snake.structure import Queue
+from games.glut_snake.structure import Snake
 import pygame
 from games.glut_snake import define
 from pygame.locals import *
@@ -7,10 +7,9 @@ from sys import exit
 import numpy as np
 import random
 from games.glut_snake import structure
-
 '''面板大小和方块大小同等比例缩放
 容纳20个方块'''
-
+import time
 class Grass(object):
     # 活动范围大小
     def __init__(self, size=500):
@@ -28,27 +27,18 @@ class Grass(object):
         # print self.screen
         # 先初始化蛇的身体和食物
 
+
     def init_snake_and_food(self):
-        snake   = Queue()
-        x = random.randint(1, 18)
-        y = random.randint(1, 18)
-        snake.push(x,y,define.SHEAD)
-        self.blocks[x][y] = define.SHEAD
-        ra = random.randint(0, 3)
-        if ra == 0:
-            x1 = x + 1
-            y1 = y
-        elif ra == 1:
-            x1 = x
-            y1 = y + 1
-        elif ra == 2:
-            x1 = x
-            y1 = y - 1
-        else:
-            x1 = x - 1
-            y1 = y
-        snake.push(x1, y1, define.SBODY)
-        self.blocks[x1][y1] = define.SBODY
+        snake   = Snake()
+        x = random.randint(2, 17)
+        y = random.randint(2, 17)
+        snake.add_body(x,y)
+        self.blocks[x][y] = define.SBODY
+        snake.add_body(x+1,y)
+        self.blocks[x+1][y] = define.SBODY
+        snake.add_head(x + 2, y)
+        self.blocks[x + 2][y] = define.SHEAD
+        print snake
         return snake,self.get_food()
 
     def get_food(self):
@@ -116,63 +106,96 @@ class Grass(object):
         pygame.draw.line(self.screen, define.BLACK, (origin_x + width, origin_y + height), (origin_x + width, origin_y),
                     2)
 
-    def process_keydown(self,key):
-        x , y = self.snake.get_head_pos()
-        next_x,next_y = x, y
-        if key == ord('w') or key == ord('W'):
-            next_x = x
-            next_y = y - 1
-        elif key == ord('a') or key == ord('A'):
-            next_x = x - 1
-            next_y = y
-        elif key == ord('s') or key == ord('S'):
-            next_x = x
-            next_y = y + 1
-        elif key == ord('d') or key == ord('D'):
-            next_x = x + 1
-            next_y = y
+    def check_valid_dire(self,next_x,next_y):
         if next_x > 19 or next_x < 0:
             return 0
         if next_y > 19 or next_y < 0:
             return 0
         if self.blocks[next_x][next_y] == define.SBODY:
             return 0
+        return 1
+
+    def process_keydown(self,key,direction):
+        #print key,direction
+        op  = define.map.get(key,define.UNDEFINED)
+        if op == define.UNDEFINED:
+            return direction,define.DONOTHING
+        if op == define.POUSE:
+            return direction,define.POUSE
+        if op == define.QUIT:
+            return direction,define.QUIT
+        old_dir = define.map.get(key)
+        if define.REVERT_DIRE.get(old_dir) == direction:
+            return direction , define.CONTINUE
+        return op , define.MOVE
+
+
+    def move(self,direction):
+        print define.DIRE_EXPLAIN.get(direction)
+        x, y = self.snake.get_head_pos()
+        next_x , next_y = x , y
+        if direction == define.MOVEDOWN:
+            next_x, next_y = x, y + 1
+        elif direction == define.MOVERIGHT:
+            next_x , next_y = x+1,y
+        elif direction == define.MOVELEFT:
+            next_x , next_y = x-1,y
+        else:
+            next_x , next_y = x,y-1
+        if self.check_valid_dire(next_x,next_y) == 0:
+            return define.FAILED
         if self.blocks[next_x][next_y] == define.SPACE:
+            #aad'wprint "space"
             self.blocks[x][y] = define.SBODY
-            self.blocks[next_x][next_y] = define.SHEAD
-            node = self.snake.pop()
-            self.blocks[node.x][node.y] = define.SPACE
-            self.snake.push(next_x,next_y,define.SHEAD)
-            self.draw_head(next_x,next_y)
             self.draw_body(x,y)
-            self.erase_block(node.x,node.y)
-            return 1
-        if self.blocks[next_x][next_y] == define.FOOD:
+            self.blocks[next_x][next_y] = define.SHEAD
+            self.draw_head(next_x, next_y)
+            self.snake.add_head(next_x,next_y)
+            node = self.snake.delete_tail()
+            self.blocks[node.x][node.y] = define.SPACE
+            self.erase_block(node.x, node.y)
+        elif self.blocks[next_x][next_y] == define.FOOD:
+            print "GET FOOD"
             self.blocks[x][y] = define.SBODY
             self.blocks[next_x][next_y] = define.SHEAD
-            self.snake.push(next_x,next_y)
+            self.snake.add_head(next_x,next_y)
             self.draw_body(x,y)
             self.draw_head(next_x,next_y)
             self.food = self.get_food()
-            print self.food.x , self.food.y
             self.draw_food(self.food.x , self.food.y)
+        return 1
 
-    def quit(self):
-        pygame.quit()
-
+    def pouse(self):
+        pass
     def start(self):
-        char = 'w'
+        direction = define.MOVEDOWN
         self.set_bk()
         self.set_wall()
         self.draw_snake_and_food()
+        user_op = False
         while True:
             for event in pygame.event.get():
+                user_op = False
                 if event.type == KEYDOWN:
-                    char = ord(event.key)
-                res = self.process_keydown(char)
-                if res == 0:
-                    pygame.quit()
+                    direction ,mode = self.process_keydown(event.key,direction)
+                    if mode == define.QUIT:
+                        pygame.quit()
+                        return
+                    if mode == define.POUSE:
+                        self.pouse()
+                    if mode == define.MOVE:
+                        status = self.move(direction)
+                        pygame.display.flip()
+                        user_op = True
+                        if status == define.FAILED:
+                            return 0
+            if not user_op :
+                status = self.move(direction)
                 pygame.display.flip()
+                if status == define.FAILED:
+                    print "failed"
+                    return 0
+            time.sleep(0.2)
 
 if __name__ == "__main__":
     grass = Grass()
