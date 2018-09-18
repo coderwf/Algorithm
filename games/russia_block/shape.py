@@ -19,6 +19,8 @@ class shape(object):
     @abstractmethod
     def init_shape(self):
         pass
+    def get_change(self):
+        return self.mats[(self.count+1)%4]
     def change_shape(self):
         old = self.mat
         self.count = (self.count + 1) % 4
